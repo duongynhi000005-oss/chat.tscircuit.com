@@ -1,10 +1,14 @@
 import Link from "next/link"
 import React, { memo } from "react"
 import { Streamdown, type StreamdownProps } from "streamdown"
+import { CodeBlock } from "./code-block"
 
 type Components = StreamdownProps["components"]
 
 const components: Partial<Components> = {
+  // @ts-expect-error
+  code: CodeBlock,
+  pre: ({ children }) => <>{children}</>,
   a: ({ node, children, ...props }) => {
     return (
       // @ts-expect-error

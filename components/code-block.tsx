@@ -14,10 +14,33 @@ import {
 import { TscircuitIframe } from "./TscircuitIframe"
 
 interface CodeBlockProps {
-  node: any
-  inline: boolean
-  className: string
+  node?: any
+  inline?: boolean
+  className?: string
   children: any
+}
+
+export function isInlineCode({
+  inline,
+  className,
+  children,
+  node,
+}: {
+  inline?: boolean
+  className?: string
+  children?: any
+  node?: any
+}): boolean {
+  if (typeof inline === "boolean") return inline
+  const hasLanguageClass = /language-(\w+)/.test(className || "")
+  if (hasLanguageClass) return false
+  if (
+    node?.position?.start?.line !== undefined &&
+    node?.position?.end?.line !== undefined
+  ) {
+    return node.position.start.line === node.position.end.line
+  }
+  return !String(children ?? "").includes("\n")
 }
 
 export function CodeBlock({
@@ -32,6 +55,20 @@ export function CodeBlock({
   const isTsx = match?.[1] === "tsx" || match?.[1] === "typescript"
   const codeContent = String(children).replace(/\n$/, "")
   const [tab, setTab] = useState<"code" | "run">("code")
+
+  if (isInlineCode({ inline, className, children, node })) {
+    return (
+      <code
+        className={cn(
+          "inline text-sm bg-zinc-100 dark:bg-zinc-800 py-0.5 px-1.5 rounded-md font-mono",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </code>
+    )
+  }
 
   return (
     <div className="not-prose flex flex-col relative">

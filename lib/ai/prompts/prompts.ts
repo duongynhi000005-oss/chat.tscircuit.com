@@ -17,8 +17,10 @@ This is a guide for using blocks tools: \`createDocument\` and \`updateDocument\
 - For informational/explanatory content
 - For conversational responses
 - When asked to keep it in chat
+- When a document has already been created in the chat (use \`updateDocument\` instead)
 
 **Using \`updateDocument\`:**
+- Always use \`updateDocument\` when modifying, fixing, or iterating on an existing circuit or document as the chat progresses, instead of writing updated code blocks in the chat response
 - Default to full document rewrites for major changes
 - Use targeted updates only for specific, isolated changes
 - Follow user instructions for which parts to modify

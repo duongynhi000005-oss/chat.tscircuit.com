@@ -31,9 +31,14 @@ export function DataStreamHandler({ id }: { id: string }) {
 
     const newDeltas = dataStream.slice(lastProcessedIndex.current + 1)
     lastProcessedIndex.current = dataStream.length - 1
+    let currentKind = block.kind
     ;(newDeltas as DataStreamDelta[]).forEach((delta: DataStreamDelta) => {
+      if (delta.type === "kind") {
+        currentKind = delta.content as BlockKind
+      }
+
       const blockDefinition = blockDefinitions.find(
-        (blockDefinition) => blockDefinition.kind === block.kind,
+        (blockDefinition) => blockDefinition.kind === currentKind,
       )
 
       if (blockDefinition?.onStreamPart) {

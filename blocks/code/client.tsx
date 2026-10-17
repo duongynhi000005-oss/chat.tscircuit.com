@@ -13,11 +13,25 @@ import { TscircuitIframe } from "@/components/TscircuitIframe"
 import { BottomContentDrawer } from "@/components/bottom-content-drawer"
 // import { RunFrame } from '@tscircuit/runframe/runner';
 
-interface Metadata {
+export interface Metadata {
   // Instead of a list of console outputs, we now store the circuit code
   // to be rendered in the preview.
   circuitPreview?: string
   timesRunWasPressed?: number
+}
+
+export function getActiveCircuitPreview({
+  content,
+  status,
+  metadata,
+}: {
+  content?: string
+  status?: "streaming" | "idle"
+  metadata?: Metadata | null
+}): string {
+  if (!metadata?.circuitPreview) return ""
+  if (status === "idle" && content) return content
+  return metadata.circuitPreview
 }
 
 export const codeBlock = new Block<"code", Metadata>({
@@ -25,15 +39,17 @@ export const codeBlock = new Block<"code", Metadata>({
   description:
     "Useful for code generation; Code execution is now replaced with a tscircuit runner that converts React code into circuits.",
   initialize: async ({ setMetadata }) => {
-    setMetadata({
-      circuitPreview: "",
-    })
+    setMetadata((metadata) => ({
+      ...metadata,
+      circuitPreview: metadata?.circuitPreview ?? "",
+    }))
   },
-  onStreamPart: ({ streamPart, setBlock }) => {
+  onStreamPart: ({ streamPart, setBlock, setMetadata }) => {
     if (streamPart.type === "code-delta") {
+      const nextContent = streamPart.content as string
       setBlock((draftBlock) => ({
         ...draftBlock,
-        content: streamPart.content as string,
+        content: nextContent,
         isVisible:
           draftBlock.status === "streaming" &&
           draftBlock.content.length > 300 &&
@@ -42,23 +58,37 @@ export const codeBlock = new Block<"code", Metadata>({
             : draftBlock.isVisible,
         status: "streaming",
       }))
+      setMetadata((metadata) =>
+        metadata?.circuitPreview
+          ? {
+              ...metadata,
+              circuitPreview: nextContent,
+            }
+          : metadata,
+      )
     }
   },
   content: ({ metadata, setMetadata, ...props }) => {
+    const activeCircuitPreview = getActiveCircuitPreview({
+      content: props.content,
+      status: props.status,
+      metadata,
+    })
+
     return (
       <div className="relative">
         <div className="px-1">
           <CodeEditor {...props} />
         </div>
         {/* Render the tscircuit runner preview if circuit code exists */}
-        {metadata?.circuitPreview && (
+        {activeCircuitPreview && (
           <BottomContentDrawer
-            timesRunWasPressed={metadata.timesRunWasPressed ?? 0}
+            timesRunWasPressed={metadata?.timesRunWasPressed ?? 0}
             openByDefault
           >
             <TscircuitIframe
               fsMap={{
-                "board.tsx": metadata.circuitPreview,
+                "board.tsx": activeCircuitPreview,
                 "entrypoint.tsx": `import Board from "./board.tsx"\ncircuit.add(<Board />)`,
               }}
               entrypoint="entrypoint.tsx"

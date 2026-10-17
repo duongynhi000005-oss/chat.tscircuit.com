@@ -33,6 +33,21 @@ export const updateDocument = ({
       }
 
       dataStream.writeData({
+        type: "kind",
+        content: document.kind,
+      })
+
+      dataStream.writeData({
+        type: "id",
+        content: document.id,
+      })
+
+      dataStream.writeData({
+        type: "title",
+        content: document.title,
+      })
+
+      dataStream.writeData({
         type: "clear",
         content: document.title,
       })

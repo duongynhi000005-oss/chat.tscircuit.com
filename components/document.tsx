@@ -55,15 +55,16 @@ function PureDocumentToolResult({
           height: rect.height,
         }
 
-        setBlock({
+        setBlock((currentBlock) => ({
           documentId: result.id,
           kind: result.kind,
-          content: "",
+          content:
+            currentBlock.documentId === result.id ? currentBlock.content : "",
           title: result.title,
           isVisible: true,
           status: "idle",
           boundingBox,
-        })
+        }))
       }}
     >
       <div className="text-muted-foreground mt-1">

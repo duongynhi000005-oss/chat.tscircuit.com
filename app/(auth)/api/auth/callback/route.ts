@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import * as jose from "jose"
 import { getOrCreateGithubUser, getUser } from "@/lib/db/queries"
 import type { User } from "@/lib/db/schema"
+import {
+  buildPostAuthRedirectPath,
+  getCookieDomain,
+  getTscircuitSessionTokenFromRequest,
+} from "@/lib/auth/session-redirect"
 
 // Secret for signing JWT tokens - should be environment variable in production
 const JWT_SECRET =
@@ -97,9 +102,11 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Create redirect response
-  const redirectUrl = new URL("/", request.url)
+  // Create redirect response preserving chat_msg or next path
+  const redirectPath = buildPostAuthRedirectPath(request.nextUrl.searchParams)
+  const redirectUrl = new URL(redirectPath, request.url)
   const response = NextResponse.redirect(redirectUrl)
+  const cookieDomain = getCookieDomain(request.nextUrl.hostname)
 
   // Set session cookie in the response
   response.cookies.set({
@@ -109,6 +116,7 @@ export async function GET(request: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
     maxAge: 60 * 60 * 24 * 7, // 7 days
   })
 
@@ -118,11 +126,16 @@ export async function GET(request: NextRequest) {
 // Helper function to get session token from various sources
 function getSessionToken(request: NextRequest): string | null {
   // First try query params
-  let sessionToken = request.nextUrl.searchParams.get("session_token")
+  let sessionToken =
+    request.nextUrl.searchParams.get("session_token") ||
+    request.nextUrl.searchParams.get("tscircuit_session_token")
   if (sessionToken) return sessionToken
 
-  // Then try cookies
-  const cookieSessionToken = request.cookies.get("session_token")?.value
+  // Then try cookies (both session_token and shared tscircuit_session_token)
+  const cookieSessionToken = getTscircuitSessionTokenFromRequest(
+    request.cookies,
+    new URLSearchParams(),
+  )
   if (cookieSessionToken) {
     try {
       // Verify the user exists in our database

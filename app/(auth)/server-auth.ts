@@ -17,7 +17,9 @@ export interface Session {
 // Function to get the current session from cookies (for server components)
 export async function getSession(): Promise<Session> {
   const cookieStore = await cookies()
-  const sessionToken = cookieStore.get("session_token")?.value
+  const sessionToken =
+    cookieStore.get("session_token")?.value ||
+    cookieStore.get("tscircuit_session_token")?.value
 
   if (!sessionToken) {
     return { user: null }

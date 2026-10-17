@@ -2,6 +2,24 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import * as jose from "jose"
 import type { SessionData } from "@/app/(auth)/auth-store"
+import {
+  extractChatMsgParam,
+  getCookieDomain,
+  getTscircuitSessionTokenFromRequest,
+} from "@/lib/auth/session-redirect"
+
+function buildLoginRedirectUrl(request: NextRequest): URL {
+  const loginUrl = new URL("/login", request.url)
+  const chatMsg = extractChatMsgParam(request.nextUrl.searchParams)
+  if (chatMsg) {
+    loginUrl.searchParams.set("chat_msg", chatMsg)
+  }
+  const currentTarget = `${request.nextUrl.pathname}${request.nextUrl.search}`
+  if (currentTarget && currentTarget !== "/" && currentTarget !== "/login") {
+    loginUrl.searchParams.set("next", currentTarget)
+  }
+  return loginUrl
+}
 
 // This middleware runs on every request
 export function middleware(request: NextRequest) {
@@ -13,12 +31,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check for session token in cookies
-  const sessionToken = request.cookies.get("session_token")?.value
+  // Check for session token in cookies (including shared tscircuit.com session token)
+  const sessionToken =
+    request.cookies.get("session_token")?.value ||
+    request.cookies.get("tscircuit_session_token")?.value
 
   // Check for session token in URL query parameter (for OAuth redirects)
   const url = request.nextUrl.clone()
-  const urlSessionToken = url.searchParams.get("session_token")
+  const urlSessionToken =
+    url.searchParams.get("session_token") ||
+    url.searchParams.get("tscircuit_session_token")
+  const cookieDomain = getCookieDomain(request.nextUrl.hostname)
 
   // If token is in URL, verify it and set a cookie
   if (urlSessionToken) {
@@ -29,6 +52,7 @@ export function middleware(request: NextRequest) {
       if (decoded && decoded.exp * 1000 > Date.now()) {
         // Clean the URL by removing the session_token parameter
         url.searchParams.delete("session_token")
+        url.searchParams.delete("tscircuit_session_token")
 
         // Create a new response with the cleaned URL
         const response = NextResponse.redirect(url)
@@ -42,6 +66,7 @@ export function middleware(request: NextRequest) {
           sameSite: "lax",
           maxAge: 60 * 60 * 24 * 7, // 1 week
           path: "/",
+          ...(cookieDomain ? { domain: cookieDomain } : {}),
         })
 
         return response
@@ -58,12 +83,17 @@ export function middleware(request: NextRequest) {
       return NextResponse.next()
     }
 
-    if (!sessionToken) {
+    const activeToken = getTscircuitSessionTokenFromRequest(
+      request.cookies,
+      request.nextUrl.searchParams,
+    )
+
+    if (!activeToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     try {
-      const decoded = jose.decodeJwt<SessionData>(sessionToken)
+      const decoded = jose.decodeJwt<SessionData>(activeToken)
 
       // Check if token is expired
       if (decoded.exp * 1000 < Date.now()) {
@@ -79,7 +109,7 @@ export function middleware(request: NextRequest) {
 
   // For non-API routes, redirect to login if no valid token
   if (!sessionToken) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    return NextResponse.redirect(buildLoginRedirectUrl(request))
   }
 
   try {
@@ -88,7 +118,7 @@ export function middleware(request: NextRequest) {
     // Check if token is expired
     if (decoded.exp * 1000 < Date.now()) {
       // Token expired, redirect to login
-      const response = NextResponse.redirect(new URL("/login", request.url))
+      const response = NextResponse.redirect(buildLoginRedirectUrl(request))
       response.cookies.delete("session_token")
       return response
     }
@@ -98,7 +128,7 @@ export function middleware(request: NextRequest) {
   } catch (error) {
     // Invalid token, redirect to login
     console.error("Invalid session token:", error)
-    const response = NextResponse.redirect(new URL("/login", request.url))
+    const response = NextResponse.redirect(buildLoginRedirectUrl(request))
     response.cookies.delete("session_token")
     return response
   }
@@ -106,5 +136,5 @@ export function middleware(request: NextRequest) {
 
 // Configure which paths the middleware runs on
 export const config = {
-  matcher: ["/", "/:id", "/api/:path*", "/login"],
+  matcher: ["/", "/new", "/:id", "/api/:path*", "/login"],
 }

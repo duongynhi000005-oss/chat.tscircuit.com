@@ -7,7 +7,13 @@ import Image from "next/image"
 
 const getNextUrl = () => {
   if (typeof window === "undefined") return ""
-  return `${window.location.origin}/api/auth/callback`
+  const callbackUrl = new URL("/api/auth/callback", window.location.origin)
+  const searchParams = new URLSearchParams(window.location.search)
+  const chatMsg = searchParams.get("chat_msg")
+  const next = searchParams.get("next")
+  if (chatMsg) callbackUrl.searchParams.set("chat_msg", chatMsg)
+  if (next) callbackUrl.searchParams.set("next", next)
+  return callbackUrl.toString()
 }
 
 export function TscircuitAuthButton() {

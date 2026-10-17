@@ -256,6 +256,29 @@ function PureBlock({
     }
   }, [block.documentId, blockDefinition, setMetadata])
 
+  useEffect(() => {
+    const handleFixWithAi = (event: Event) => {
+      if (isReadonly || isLoading) return
+      const customEvent = event as CustomEvent<{
+        errorMessage?: string
+        prompt?: string
+      }>
+      const prompt =
+        customEvent.detail?.prompt ||
+        (customEvent.detail?.errorMessage
+          ? `Please fix the following error in the circuit code:\n\n\`\`\`\n${customEvent.detail.errorMessage}\n\`\`\``
+          : "Please fix the current error in the circuit code.")
+      append({
+        role: "user",
+        content: prompt,
+      })
+    }
+
+    window.addEventListener("tscircuit:fix-with-ai", handleFixWithAi)
+    return () =>
+      window.removeEventListener("tscircuit:fix-with-ai", handleFixWithAi)
+  }, [append, isLoading, isReadonly])
+
   return (
     <AnimatePresence>
       {block.isVisible && (

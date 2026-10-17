@@ -191,11 +191,11 @@ function PureMultimodalInput({
     }
   }
 
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || [])
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return
 
-      setUploadQueue(files.map((file) => file.name))
+      setUploadQueue(files.map((file) => file.name || "image.png"))
 
       try {
         const uploadPromises = files.map((file) => uploadFile(file))
@@ -215,6 +215,31 @@ function PureMultimodalInput({
       }
     },
     [setAttachments],
+  )
+
+  const handleFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || [])
+      await uploadFiles(files)
+      event.target.value = ""
+    },
+    [uploadFiles],
+  )
+
+  const handlePaste = useCallback(
+    async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = Array.from(event.clipboardData?.items || [])
+      const imageFiles = items
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null)
+
+      if (imageFiles.length > 0) {
+        event.preventDefault()
+        await uploadFiles(imageFiles)
+      }
+    },
+    [uploadFiles],
   )
 
   const handleKeyDown = useCallback(
@@ -315,6 +340,7 @@ function PureMultimodalInput({
 
       <input
         type="file"
+        accept="image/*"
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
         ref={fileInputRef}
         multiple
@@ -338,30 +364,29 @@ function PureMultimodalInput({
                     </span>
                   </div>
                 )}
-                {/* Remove button for packages */}
-                {attachment.contentType === "text/plain" && (
-                  <button
-                    onClick={() => {
-                      // Remove from attachments
-                      setAttachments((currentAttachments) =>
-                        currentAttachments.filter(
-                          (a) => a.url !== attachment.url,
-                        ),
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachments((currentAttachments) =>
+                      currentAttachments.filter(
+                        (a) => a.url !== attachment.url,
+                      ),
+                    )
+                    if (
+                      attachment.contentType === "text/plain" &&
+                      attachment.name
+                    ) {
+                      const newInput = input.replace(
+                        new RegExp(`@${attachment.name}`, "g"),
+                        "",
                       )
-                      // Remove @packagename from input text
-                      if (attachment.name) {
-                        const newInput = input.replace(
-                          new RegExp(`@${attachment.name}`, "g"),
-                          "",
-                        )
-                        setInput(newInput)
-                      }
-                    }}
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/80"
-                  >
-                    <span className="text-xs">×</span>
-                  </button>
-                )}
+                      setInput(newInput)
+                    }
+                  }}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/80"
+                >
+                  <span className="text-xs">×</span>
+                </button>
               </div>
             )
           })}
@@ -386,6 +411,7 @@ function PureMultimodalInput({
         name="input"
         value={input}
         onChange={handleInput}
+        onPaste={handlePaste}
         className={cx(
           "min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700",
           className,

@@ -4,6 +4,13 @@ import { z } from "zod"
 
 import { getSession } from "@/app/(auth)/server-auth"
 
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]
+
 // Use Blob instead of File since File is not available in Node.js environment
 const FileSchema = z.object({
   file: z
@@ -12,8 +19,8 @@ const FileSchema = z.object({
       message: "File size should be less than 5MB",
     })
     // Update the file type based on the kind of files you want to accept
-    .refine((file) => ["image/jpeg", "image/png"].includes(file.type), {
-      message: "File type should be JPEG or PNG",
+    .refine((file) => ALLOWED_IMAGE_TYPES.includes(file.type), {
+      message: "File type should be JPEG, PNG, WEBP, or GIF",
     }),
 })
 
@@ -47,18 +54,27 @@ export async function POST(request: Request) {
     }
 
     // Get filename from formData since Blob doesn't have name property
-    const filename = (formData.get("file") as File).name
+    const filename = (formData.get("file") as File).name || "image.png"
     const fileBuffer = await file.arrayBuffer()
 
-    try {
-      const data = await put(`${filename}`, fileBuffer, {
-        access: "public",
-      })
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        const data = await put(`${filename}`, fileBuffer, {
+          access: "public",
+        })
 
-      return NextResponse.json(data)
-    } catch (error) {
-      return NextResponse.json({ error: "Upload failed" }, { status: 500 })
+        return NextResponse.json(data)
+      } catch (error) {
+        return NextResponse.json({ error: "Upload failed" }, { status: 500 })
+      }
     }
+
+    const base64 = Buffer.from(fileBuffer).toString("base64")
+    return NextResponse.json({
+      url: `data:${file.type};base64,${base64}`,
+      pathname: filename,
+      contentType: file.type,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to process request" },

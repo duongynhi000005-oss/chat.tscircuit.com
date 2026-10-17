@@ -153,7 +153,7 @@ are optional.
 - \`capacitor /\` - \`capacitance\`
 - \`inductor /\` - \`inductance\`
 - \`led /\` - \`color\`
-- \`diode /\` - \`variant\` (standard/schottky/zener/avalanche/photo/tvs)
+- \`diode /\` - \`variant\` (standard/schottky/zener/avalanche/photo/tvs). Common footprints: \`"0402"\`, \`"0603"\`, \`"0805"\`, \`"sod123"\`, \`"sod323"\`, \`"axial"\`
 - \`trace /\` - \`from\`, \`to\`
 - \`transistor /\` - \`type\` (npn/pnp/nmos/pmos)
 - \`mosfet /\` - \`channelType\` (n/p), \`mosfetMode\` (enhancement/depletion)
@@ -179,9 +179,11 @@ are optional.
 ## Common Footprints
 
 - "0402", "0603", "0805", "1206", "1210"
-- "dip", "dip8", "dip16", "axial", "soic8", "bga64", "tssop8", "stampboard", "stampreceiver", "hc49", "to92", "to220", "ssop", "qfp16", "qfn16", "sot23", "sot23_5", "sot223", "pinrow2", "pinrow6"
+- "dip", "dip8", "dip16", "axial", "soic8", "bga64", "tssop8", "stampboard", "stampreceiver", "hc49", "to92", "to220", "ssop", "qfp16", "qfn16", "sot23", "sot23_5", "sot223", "sod123", "sod323", "pinrow2", "pinrow6"
 - You can generally alter footprints by changing numbers or adding parameters e.g. "soic8_w4mm" creates a 4mm width soic, "pinrow8_p1mm" creates an 8 pin pinrow with 1mm pitch
 - For batteries, just use "pinrow2"
+- For diodes, use "0402", "0603", "0805", "sod123", "sod323", or "axial"
+- Footprints must be valid @tscircuit/footprinter strings (lowercase alphanumeric/underscore like "0402", "0603", "0805", "sod123", "soic8", "sot23", "pinrow2", "axial"). Never use hyphenated descriptions like "smd-diode" or KiCad footprint names like "D_SOD-123"
 
 ## Important Notes
 
@@ -226,6 +228,8 @@ ${currentContent}
 `
     : type === "code"
       ? `\
+${codePrompt}
+
 Improve the following code snippet based on the given prompt.
 
 ${currentContent}
